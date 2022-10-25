@@ -1,0 +1,139 @@
+notesTable:
+  Type: AWS::DynamoDB::Table
+  Properties:
+    TableName: notes-${self:provider.stage}
+    BillingMode: 'PAY_PER_REQUEST'
+    AttributeDefinitions:
+      - AttributeName: 'notesId'
+        AttributeType: S
+    KeySchema:
+      - AttributeName: 'notesId'
+        KeyType: HASH
+CreateNoteRole:
+  Type: AWS::IAM::Role
+  Properties:
+    RoleName: ${self:provider.stage}-CreateNoteRole
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - lambda.amazonaws.com
+              - apigateway.amazonaws.com
+          Action: sts:AssumeRole
+    Policies:
+      - PolicyName: CreateNotePolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement: 
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+              Resource: !GetAtt notesTable.Arn
+UpdateNoteRole:
+  Type: AWS::IAM::Role
+  Properties:
+    RoleName: ${self:provider.stage}-UpdateNoteRole
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - lambda.amazonaws.com
+              - apigateway.amazonaws.com
+          Action: sts:AssumeRole
+    Policies:
+      - PolicyName: UpdateNotePolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement: 
+            - Effect: Allow
+              Action:
+                - dynamodb:UpdateItem
+              Resource: !GetAtt notesTable.Arn
+DeleteNoteRole:
+  Type: AWS::IAM::Role
+  Properties:
+    RoleName: ${self:provider.stage}-DeleteNoteRole
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - lambda.amazonaws.com
+              - apigateway.amazonaws.com
+          Action: sts:AssumeRole
+    Policies:
+      - PolicyName: DeleteNotePolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement: 
+            - Effect: Allow
+              Action:
+                - dynamodb:DeleteItem
+              Resource: !GetAtt notesTable.Arn
+GetNoteRole:
+  Type: AWS::IAM::Role
+  Properties:
+    RoleName: ${self:provider.stage}-GetNoteRole
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - lambda.amazonaws.com
+              - apigateway.amazonaws.com
+          Action: sts:AssumeRole
+    Policies:
+      - PolicyName: GetNotePolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement: 
+            - Effect: Allow
+              Action:
+                - dynamodb:Scan
+              Resource: !GetAtt notesTable.Arn
+    
+# Cognito user pool
+cognitoUserPool:
+  Type: AWS::Cognito::UserPool
+  Properties:
+    UserPoolName: myNotesUP-${self:provider.stage}
+
+# User Pool Client
+cognitoUserPoolClient:
+  Type: AWS::Cognito::UserPoolClient
+  Properties:
+    UserPoolId: !Ref cognitoUserPool
+    ClientName: webClient
+    AllowedOAuthFlows: 
+      - implicit
+    CallbackURLs:
+      - http://localhost:3000
+    AllowedOAuthFlowsUserPoolClient: true
+    AllowedOAuthScopes:
+      - phone
+      - email
+      - profile
+      - openid
+    SupportedIdentityProviders:
+      - COGNITO
+
+# User Pool Domain
+cognitoUserPoolDomain:
+  Type: AWS::Cognito::UserPoolDomain
+  Properties:
+    UserPoolId: !Ref cognitoUserPool
+    Domain: mynotescd-${self:provider.stage}
+    
+# Application Parameters
+userPoolIdParam:
+  Type: AWS::SSM::Parameter
+  Properties:
+    Name: /notes/${self:provider.stage}/userPoolArn
+    Type: String
+    Value: !GetAtt cognitoUserPool.Arn

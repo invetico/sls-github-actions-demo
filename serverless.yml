@@ -1,0 +1,77 @@
+
+service: notes-api
+
+frameworkVersion: '2'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  lambdaHashingVersion: 20201221
+  stage: ${opt:stage, 'dev'}
+  region: ap-southeast-2
+
+plugins:
+  -serverless-iam-roles-per-function
+
+resources:
+  Resources:
+    ${file(resources.yml)}
+    
+functions:
+  authorizer:
+    handler: authorizer.handler
+    environment:
+      COGNITO_USERPOOL_ID: !Ref cognitoUserPool
+      COGNITO_WEBCLIENT_ID: !Ref cognitoUserPoolClient
+
+  createnote:
+    handler: handler.createnote
+    role: CreateNoteRole
+    environment:
+      NOTES_TABLE_NAME: !Ref notesTable
+      AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    events:
+      - http:
+          method: post
+          path: notes
+          authorizer: authorizer
+
+  updatenote:
+    handler: handler.updatenote
+    role: UpdateNoteRole
+    environment:
+      NOTES_TABLE_NAME: !Ref notesTable
+      AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    events:
+      - http:
+          method: put
+          path: notes/{id}
+          authorizer: authorizer
+
+  deletenote:
+    handler: handler.deletenote
+    role: DeleteNoteRole
+    environment:
+      NOTES_TABLE_NAME: !Ref notesTable
+      AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    events:
+      - http:
+          method: delete
+          path: notes/{id}
+          authorizer: authorizer
+
+  getallnotes:
+    handler: handler.getallnotes
+    role: GetNoteRole
+    environment:
+      NOTES_TABLE_NAME: !Ref notesTable
+      AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    events:
+      - http:
+          method: get
+          path: notes
+          authorizer:
+            name: userpool_authorizer
+            type: COGNITO_USER_POOLS
+            arn: !GetAtt cognitoUserPool.Arn
+
